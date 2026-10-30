@@ -1,0 +1,593 @@
+<Window x:Class="SonicDeck.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:skia="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
+        Title="SonicDeck — System Audio Controller, Equalizer &amp; Real-Time Visualizer"
+        Width="1360"
+        Height="860"
+        MinWidth="1060"
+        MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgDeep}"
+        Foreground="{StaticResource TextPrimary}"
+        KeyDown="MainWindow_KeyDown">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="1.15*"/>
+            <RowDefinition Height="1.10*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ======================= ROW 0: TOP TRANSPORT & MASTER BAR ======================= -->
+        <Border Grid.Row="0"
+                Background="{StaticResource BgPanel}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,8"
+                Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Brand & Engine Badge -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#06B6D4" CornerRadius="4" Padding="7,3" Margin="0,0,10,0">
+                        <TextBlock Text="SONICDECK" Foreground="#041019" FontWeight="ExtraBold" FontSize="12.5"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="SYSTEM-WIDE AUDIO CONTROLLER &amp; GPU VISUALIZER"
+                                   FontSize="10.5" FontWeight="Bold" Foreground="#94A3B8"/>
+                        <TextBlock x:Name="TxtNowPlaying"
+                                   Text="Monitoring System Audio Loopback (60 FPS)"
+                                   FontSize="11.5" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Global Media Transport Controls + Built-in DSP Test Synth -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button Content="|&lt;&lt; Prev" Click="BtnMediaPrev_Click" Margin="2,0" Padding="9,5"/>
+                    <Button Content="Play / Pause" Click="BtnMediaPlayPause_Click" Margin="2,0" Padding="12,5" Background="#1D3557" BorderBrush="#38BDF8"/>
+                    <Button Content="Next &gt;&gt;|" Click="BtnMediaNext_Click" Margin="2,0" Padding="9,5"/>
+                    <Button Content="Stop" Click="BtnMediaStop_Click" Margin="2,0,14,0" Padding="9,5"/>
+
+                    <Button x:Name="BtnTestSynth"
+                            Content="▶ Test Internal DSP Synth Groove"
+                            Click="BtnTestSynth_Click"
+                            Background="#1E1B4B"
+                            BorderBrush="#8B5CF6"
+                            Foreground="#E0E7FF"
+                            Padding="12,5"
+                            ToolTip="Plays a built-in synthwave groove directly through the C# 10-band BiQuad Equalizer so you can hear &amp; test EQ filters immediately"/>
+                </StackPanel>
+
+                <!-- Output Device Selector -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                    <TextBlock Text="Output:" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11.5"/>
+                    <ComboBox x:Name="CmbOutputDevices"
+                              Width="220"
+                              SelectionChanged="CmbOutputDevices_SelectionChanged"
+                              VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Master Volume & Mute -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnMasterMute"
+                            Content="VOL"
+                            Click="BtnMasterMute_Click"
+                            Width="46"
+                            Margin="0,0,6,0"/>
+                    <Slider x:Name="SldMasterVolume"
+                            Minimum="0" Maximum="100" Value="80"
+                            Width="115"
+                            VerticalAlignment="Center"
+                            ValueChanged="SldMasterVolume_ValueChanged"/>
+                    <TextBlock x:Name="TxtMasterVolume"
+                               Text="80%"
+                               Width="38"
+                               TextAlignment="Right"
+                               VerticalAlignment="Center"
+                               FontWeight="Bold"
+                               Foreground="#F8FAFC"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ======================= ROW 1: INTERACTIVE SKIASHARP VISUALIZER DECK ======================= -->
+        <Border Grid.Row="1"
+                Background="{StaticResource BgPanel}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Margin="0,0,0,8"
+                ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Visualizer Mode & Theme Bar -->
+                <Border Grid.Row="0" Background="#121B2E" Padding="10,6" BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="VISUAL MODE:" FontSize="11" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <Button Content="◀" Click="BtnPrevMode_Click" Padding="7,3" Margin="0,0,3,0" ToolTip="Previous Visual Mode"/>
+                            <ComboBox x:Name="CmbVisualMode"
+                                      Width="255"
+                                      SelectionChanged="CmbVisualMode_SelectionChanged"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,3,0"/>
+                            <Button Content="▶" Click="BtnNextMode_Click" Padding="7,3" Margin="0,0,12,0" ToolTip="Next Visual Mode"/>
+
+                            <TextBlock x:Name="LblRtaStyle" Text="RTA STYLE:" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="CmbRtaStyle"
+                                      Width="220"
+                                      SelectionChanged="CmbRtaStyle_SelectionChanged"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Drag Node: 2D Freq/dB | Wheel: Q | Shift: Solo | R-Click: Reset"
+                                       Foreground="#64748B" FontSize="10.5" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Text="THEME:" FontSize="11" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="CmbTheme" Width="135" SelectionChanged="CmbTheme_SelectionChanged" Margin="0,0,10,0"/>
+
+                            <Button x:Name="BtnPopoutVisualizer"
+                                    Content="↗ Pop Out"
+                                    Click="BtnPopoutVisualizer_Click"
+                                    Background="#1E293B"
+                                    BorderBrush="#38BDF8"
+                                    Foreground="#38BDF8"
+                                    Margin="0,0,6,0"
+                                    Padding="9,4"
+                                    ToolTip="Break out the visualizer into its own resizable floating window"/>
+
+                            <Button x:Name="BtnFullscreenVisualizer"
+                                    Content="⛶ Fullscreen (F11)"
+                                    Click="BtnFullscreenVisualizer_Click"
+                                    Background="#1E1B4B"
+                                    BorderBrush="#8B5CF6"
+                                    Foreground="#E0E7FF"
+                                    Padding="9,4"
+                                    ToolTip="Launch the visualizer in full-screen mode (Press Esc or F11 to return)"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Hardware-Accelerated SkiaSharp Surface -->
+                <skia:SKElement x:Name="SkiaCanvas"
+                                Grid.Row="1"
+                                PaintSurface="SkiaCanvas_PaintSurface"
+                                MouseDown="SkiaCanvas_MouseDown"
+                                MouseMove="SkiaCanvas_MouseMove"
+                                MouseUp="SkiaCanvas_MouseUp"
+                                MouseWheel="SkiaCanvas_MouseWheel"
+                                MouseLeave="SkiaCanvas_MouseLeave"
+                                Cursor="Cross"/>
+
+                <!-- Shown in Main Window when Visualizer is Undocked / Fullscreen -->
+                <Border x:Name="UndockedBanner"
+                        Grid.Row="1"
+                        Visibility="Collapsed"
+                        Background="#0A0F1D">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="VISUALIZER UNDOCKED TO EXTERNAL WINDOW"
+                                   FontSize="15"
+                                   FontWeight="ExtraBold"
+                                   Foreground="#38BDF8"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,6"/>
+                        <TextBlock Text="All Equalizer sliders, Presets, and Per-App Mixer controls below remain live in real time."
+                                   FontSize="12"
+                                   Foreground="#94A3B8"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,14"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="↙ Dock Visualizer Back Here (Esc)"
+                                    Click="BtnDockVisualizerBack_Click"
+                                    Background="#065F46"
+                                    BorderBrush="#10B981"
+                                    Foreground="#ECFDF5"
+                                    Padding="16,8"
+                                    FontSize="12.5"
+                                    Margin="0,0,10,0"/>
+                            <Button Content="⛶ Toggle Fullscreen on Popout (F11)"
+                                    Click="BtnFullscreenVisualizer_Click"
+                                    Background="#1E1B4B"
+                                    BorderBrush="#8B5CF6"
+                                    Foreground="#E0E7FF"
+                                    Padding="14,8"
+                                    FontSize="12.5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ======================= ROW 2: LOWER 3-COLUMN CONTROL RACK ======================= -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.55*"/>
+                <ColumnDefinition Width="0.95*"/>
+                <ColumnDefinition Width="1.05*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- =================== COL 0: 10-BAND PARAMETRIC / GRAPHIC EQUALIZER =================== -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource BgPanel}"
+                    BorderBrush="{StaticResource BorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10"
+                    Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- EQ Header: Power, Engine Selector, Preset Selector, Reset -->
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <CheckBox x:Name="ChkEqEnabled"
+                                  Grid.Column="0"
+                                  Content="EQ ENABLED"
+                                  IsChecked="True"
+                                  FontWeight="Bold"
+                                  Foreground="#38BDF8"
+                                  Checked="ChkEqEnabled_Changed"
+                                  Unchecked="ChkEqEnabled_Changed"
+                                  Margin="0,0,12,0"/>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="Engine:" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                            <ComboBox x:Name="CmbEqEngineMode" Width="155" SelectionChanged="CmbEqEngineMode_SelectionChanged">
+                                <ComboBoxItem Content="Both (APO + C# DSP)" IsSelected="True"/>
+                                <ComboBoxItem Content="Equalizer APO (0ms)"/>
+                                <ComboBoxItem Content="Internal C# DSP Only"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Preset:" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                            <ComboBox x:Name="CmbPresets" Width="185" SelectionChanged="CmbPresets_SelectionChanged"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="3"
+                                Content="Reset Flat"
+                                Click="BtnResetEq_Click"
+                                Padding="10,4"/>
+                    </Grid>
+
+                    <!-- Preamp, Sub-Bass Shelf, Treble Tilt, Q-Factor & Balance Bar -->
+                    <Border Grid.Row="1" Background="{StaticResource BgCard}" CornerRadius="6" Padding="8,6" Margin="0,0,0,8">
+                        <UniformGrid Columns="5">
+                            <StackPanel Margin="4,0">
+                                <DockPanel>
+                                    <TextBlock Text="Preamp" FontSize="10.5" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="TxtPreampVal" Text="0.0 dB" FontSize="10.5" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <Slider x:Name="SldPreamp" Minimum="-15" Maximum="15" Value="0" ValueChanged="ToneControls_ValueChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="4,0">
+                                <DockPanel>
+                                    <TextBlock Text="Sub-Bass (75Hz)" FontSize="10.5" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="TxtBassBoostVal" Text="0.0 dB" FontSize="10.5" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <Slider x:Name="SldBassBoost" Minimum="-12" Maximum="12" Value="0" ValueChanged="ToneControls_ValueChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="4,0">
+                                <DockPanel>
+                                    <TextBlock Text="Treble Air (6.5k)" FontSize="10.5" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="TxtTrebleTiltVal" Text="0.0 dB" FontSize="10.5" FontWeight="Bold" Foreground="#A855F7" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <Slider x:Name="SldTrebleTilt" Minimum="-12" Maximum="12" Value="0" ValueChanged="ToneControls_ValueChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="4,0">
+                                <DockPanel>
+                                    <TextBlock Text="Bandwidth (Q)" FontSize="10.5" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="TxtGlobalQVal" Text="1.00x" FontSize="10.5" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <Slider x:Name="SldGlobalQ" Minimum="0.4" Maximum="3.0" Value="1.0" ValueChanged="ToneControls_ValueChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="4,0">
+                                <DockPanel>
+                                    <TextBlock Text="Balance L/R" FontSize="10.5" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="TxtBalanceVal" Text="Center" FontSize="10.5" FontWeight="Bold" Foreground="#E2E8F0" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <Slider x:Name="SldBalance" Minimum="-1.0" Maximum="1.0" Value="0" ValueChanged="ToneControls_ValueChanged"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- 10-Band Vertical Faders -->
+                    <ItemsControl x:Name="ItemsEqBands" Grid.Row="2">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" Columns="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#131C30" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="5" Margin="2,0" Padding="2,5">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0"
+                                                   Text="{Binding GainFormatted}"
+                                                   HorizontalAlignment="Center"
+                                                   FontSize="10.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#FBBF24"
+                                                   Margin="0,0,0,4"/>
+
+                                        <Slider Grid.Row="1"
+                                                Orientation="Vertical"
+                                                Minimum="-15"
+                                                Maximum="15"
+                                                Value="{Binding GainDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                HorizontalAlignment="Center"
+                                                TickPlacement="Both"
+                                                TickFrequency="3"/>
+
+                                        <TextBlock Grid.Row="2"
+                                                   Text="{Binding Label}"
+                                                   HorizontalAlignment="Center"
+                                                   FontSize="10.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#94A3B8"
+                                                   Margin="0,4,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+
+            <!-- =================== COL 1: VISUALIZER PHYSICS & SHADER CONTROLS =================== -->
+            <Border Grid.Column="1"
+                    Background="{StaticResource BgPanel}"
+                    BorderBrush="{StaticResource BorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10"
+                    Margin="0,0,8,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="VISUALIZER PHYSICS &amp; CONTROLS"
+                                   FontSize="12" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,8"/>
+
+                        <!-- Gain / Sensitivity -->
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="Visual Gain / Sensitivity" FontSize="11" Foreground="#CBD5E1"/>
+                            <TextBlock x:Name="TxtVisGain" Text="1.2x" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <Slider x:Name="SldVisGain" Minimum="0.2" Maximum="3.5" Value="1.2" ValueChanged="VisControls_Changed" Margin="0,0,0,6"/>
+
+                        <!-- Smoothing -->
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="Smoothing (Snappy ↔ Liquid)" FontSize="11" Foreground="#CBD5E1"/>
+                            <TextBlock x:Name="TxtVisSmoothing" Text="65%" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <Slider x:Name="SldVisSmoothing" Minimum="0.05" Maximum="0.95" Value="0.65" ValueChanged="VisControls_Changed" Margin="0,0,0,6"/>
+
+                        <!-- Peak Cap Gravity -->
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="Peak Hold Gravity (Fall Speed)" FontSize="11" Foreground="#CBD5E1"/>
+                            <TextBlock x:Name="TxtVisGravity" Text="1.0x" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <Slider x:Name="SldVisGravity" Minimum="0.1" Maximum="3.0" Value="1.0" ValueChanged="VisControls_Changed" Margin="0,0,0,6"/>
+
+                        <!-- Frequency Tilt (dB/Octave) -->
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="High-Freq Slope Tilt (dB/Oct)" FontSize="11" Foreground="#CBD5E1"/>
+                            <TextBlock x:Name="TxtVisTilt" Text="+3.0 dB" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <Slider x:Name="SldVisTilt" Minimum="0.0" Maximum="6.5" Value="3.0" ValueChanged="VisControls_Changed" Margin="0,0,0,6"/>
+
+                        <!-- Glow & Beat Pulse -->
+                        <UniformGrid Columns="2" Margin="0,0,0,6">
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="Glow / Bloom" FontSize="11" Foreground="#CBD5E1"/>
+                                <Slider x:Name="SldVisGlow" Minimum="0" Maximum="1" Value="0.65" ValueChanged="VisControls_Changed"/>
+                            </StackPanel>
+                            <StackPanel Margin="6,0,0,0">
+                                <TextBlock Text="Beat Flash Pulse" FontSize="11" Foreground="#CBD5E1"/>
+                                <Slider x:Name="SldVisBeat" Minimum="0.1" Maximum="1.8" Value="0.9" ValueChanged="VisControls_Changed"/>
+                            </StackPanel>
+                        </UniformGrid>
+
+                        <!-- Band Count Selector -->
+                        <DockPanel Margin="0,2,0,6">
+                            <TextBlock Text="LED / Radial Band Count:" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="CmbBandCount" Width="110" HorizontalAlignment="Right" SelectionChanged="CmbBandCount_SelectionChanged">
+                                <ComboBoxItem Content="16 Bands (Retro)"/>
+                                <ComboBoxItem Content="32 Bands"/>
+                                <ComboBoxItem Content="64 Bands (Pro)" IsSelected="True"/>
+                                <ComboBoxItem Content="128 Bands (Ultra)"/>
+                            </ComboBox>
+                        </DockPanel>
+
+                        <!-- Toggles -->
+                        <UniformGrid Columns="2" Margin="0,2,0,0">
+                            <CheckBox x:Name="ChkShowEqCurve" Content="Overlay EQ Curve" IsChecked="True" Checked="VisToggles_Changed" Unchecked="VisToggles_Changed"/>
+                            <CheckBox x:Name="ChkApplyEqVisuals" Content="Post-EQ Spectrum" IsChecked="True" Checked="VisToggles_Changed" Unchecked="VisToggles_Changed"/>
+                            <CheckBox x:Name="ChkShowPreGhost" Content="Pre-EQ Ghost Line" IsChecked="True" Checked="VisToggles_Changed" Unchecked="VisToggles_Changed"/>
+                            <CheckBox x:Name="ChkShowPeaks" Content="Peak Hold Caps" IsChecked="True" Checked="VisToggles_Changed" Unchecked="VisToggles_Changed"/>
+                            <CheckBox x:Name="ChkShowMirror" Content="Water Reflection" IsChecked="True" Checked="VisToggles_Changed" Unchecked="VisToggles_Changed"/>
+                            <CheckBox x:Name="ChkSoftLimiter" Content="Soft-Knee Limiter" IsChecked="True" Checked="ToneControls_ValueChanged" Unchecked="ToneControls_ValueChanged"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- =================== COL 2: PER-APP MIXER & DUAL EQ ROUTING =================== -->
+            <Border Grid.Column="2"
+                    Background="{StaticResource BgPanel}"
+                    BorderBrush="{StaticResource BorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Per-App Mixer Header -->
+                    <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock Text="PER-APP AUDIO SESSION MIXER"
+                                   FontSize="12" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                        <Button Content="↻ Refresh Apps"
+                                Click="BtnRefreshSessions_Click"
+                                HorizontalAlignment="Right"
+                                Padding="8,3"
+                                FontSize="11"/>
+                    </DockPanel>
+
+                    <!-- Active App Volume List -->
+                    <Border Grid.Row="1" Background="#0B101D" CornerRadius="6" Padding="6" Margin="0,0,0,8">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="ItemsAppSessions">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#151F34" CornerRadius="5" Padding="7,5" Margin="0,0,0,5">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <DockPanel Grid.Row="0" Margin="0,0,0,3">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#E2E8F0"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="195"/>
+                                                    <TextBlock Text="{Binding VolumeText}"
+                                                               FontSize="11" FontWeight="Bold"
+                                                               Foreground="#38BDF8"
+                                                               HorizontalAlignment="Right"/>
+                                                </DockPanel>
+
+                                                <Grid Grid.Row="1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="48"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <CheckBox Grid.Column="0"
+                                                              Content="Mute"
+                                                              IsChecked="{Binding IsMuted, Mode=TwoWay}"
+                                                              FontSize="10.5"
+                                                              Margin="0,0,6,0"/>
+
+                                                    <Slider Grid.Column="1"
+                                                            Minimum="0" Maximum="100"
+                                                            Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                            VerticalAlignment="Center"/>
+
+                                                    <ProgressBar Grid.Column="2"
+                                                                 Minimum="0" Maximum="1"
+                                                                 Value="{Binding PeakLevel, Mode=OneWay}"
+                                                                 Height="7"
+                                                                 Margin="6,0,0,0"
+                                                                 Background="#1E293B"
+                                                                 Foreground="#10B981"/>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- Dual EQ Engine Configuration Box (Equalizer APO + Internal C# DSP Router) -->
+                    <Border Grid.Row="2" Background="{StaticResource BgCard}" CornerRadius="6" Padding="8,6">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,4">
+                                <TextBlock Text="DUAL EQ ENGINE BRIDGE" FontSize="10.5" FontWeight="Bold" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                                <Button Content="Open APO Config Folder"
+                                        Click="BtnOpenApoFolder_Click"
+                                        HorizontalAlignment="Right"
+                                        Padding="7,2"
+                                        FontSize="10.5"/>
+                            </DockPanel>
+
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="52"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="DSP In:" FontSize="10.5" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbDspInput" Grid.Column="1" FontSize="10.5" ToolTip="Select VB-Cable Output, Stereo Mix, or another Input device for internal C# DSP routing"/>
+                            </Grid>
+
+                            <Grid Margin="0,2,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="52"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="DSP Out:" FontSize="10.5" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbDspOutput" Grid.Column="1" FontSize="10.5" Margin="0,0,6,0"/>
+                                <Button x:Name="BtnToggleDspRoute"
+                                        Grid.Column="2"
+                                        Content="Start Route"
+                                        Click="BtnToggleDspRoute_Click"
+                                        Padding="8,2"
+                                        FontSize="10.5"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ======================= ROW 3: STATUS FOOTER ======================= -->
+        <Border Grid.Row="3" Margin="2,6,2,0">
+            <DockPanel>
+                <TextBlock x:Name="TxtStatusLeft"
+                           Text="Equalizer Engine: Both (Equalizer APO + Internal C# 12-Stage BiQuad DSP)"
+                           FontSize="11"
+                           Foreground="#94A3B8"/>
+                <TextBlock x:Name="TxtStatusRight"
+                           Text="4096-pt FFT | 60 FPS SkiaSharp GPU"
+                           FontSize="11"
+                           Foreground="#64748B"
+                           HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
