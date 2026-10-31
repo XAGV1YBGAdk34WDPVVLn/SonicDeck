@@ -18,7 +18,7 @@ Captures system loopback audio via Windows WASAPI with zero audio interruption a
 4. **Radial Bass Reactor + Particle Ring** — 360° circular spectrum analyzer that pulses with real-time sub-bass energy.
 5. **Cyber Horizon 3D Synthwave Terrain** — Perspective 3D scrolling frequency terrain grid.
 
-- **6 Color Themes**: *Cyberpunk Neon*, *Winamp Classic LED*, *Studio Pro Amber*, *Arctic Ice*, *Sunset Synthwave*, and *Matrix Phosphor*.
+- **19 Multi-Stop Color Themes** (with live swatch previews & quick-step controls): *Cyberpunk Neon*, *Pro Studio Mastering*, *Chromatic Prism (Full Spectrum Rainbow)*, *RGB Chameleon Flow (Live Animated Color Shift)*, *Tokyo Midnight*, *Volcanic Magma*, *Bioluminescent Abyss*, *Northern Lights*, *Ultraviolet Laser*, *Solar Eclipse 24K*, *Blood Moon Noir*, *Vaporwave 1995*, *Radioactive Hazard*, *Cosmic Supernova*, *Sunset Synthwave*, *Arctic Borealis*, *Studio Pro Amber*, *Matrix Phosphor*, and *Winamp Classic LED*.
 - **Pop-Out / Fullscreen Visualizer Window**: Detach the visualizer into a dedicated multi-monitor window (`F11` or double-click to toggle borderless fullscreen).
 
 ### 2. Dual-Engine 10-Band Parametric & Graphic Equalizer
@@ -89,6 +89,7 @@ Once published, run `publish\SonicDeck.exe` directly or use `run-sonicdeck.bat`.
 | **Right-Click EQ Node** | Reset that band to its default center frequency, `0.0 dB` gain, and `1.41` Q |
 | **Double-Click Visualizer** | Open the detached Pop-Out Visualizer window (or toggle fullscreen inside the pop-out window) |
 | **`F11` / `Esc` (Pop-Out)** | Toggle borderless fullscreen mode in the Pop-Out Visualizer window |
+| **`T` (Pop-Out / Fullscreen)** | Cycle through all 19 color themes in the Pop-Out / Fullscreen Visualizer window |
 
 ---
 

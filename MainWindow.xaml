@@ -139,10 +139,22 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Drag Node: 2D Freq/dB | Wheel: Q | Shift: Solo | R-Click: Reset"
-                                       Foreground="#64748B" FontSize="10.5" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <TextBlock Text="THEME:" FontSize="11" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <ComboBox x:Name="CmbTheme" Width="135" SelectionChanged="CmbTheme_SelectionChanged" Margin="0,0,10,0"/>
+                            <TextBlock Text="Drag: 2D Freq/dB | Wheel: Q | Shift: Solo | R-Click: Reset"
+                                       Foreground="#64748B" FontSize="10.5" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="THEME:" FontSize="11" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="◀" Click="BtnPrevTheme_Click" Padding="6,3" Margin="0,0,3,0" ToolTip="Previous Color Theme"/>
+                            <ComboBox x:Name="CmbTheme" Width="195" SelectionChanged="CmbTheme_SelectionChanged" Margin="0,0,3,0">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Width="28" Height="11" CornerRadius="3" Background="{Binding SwatchBrush}" BorderBrush="#334155" BorderThickness="1" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <Ellipse Width="7" Height="7" Fill="{Binding EqAccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="EQ Curve Accent Color"/>
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Content="▶" Click="BtnNextTheme_Click" Padding="6,3" Margin="0,0,10,0" ToolTip="Next Color Theme"/>
 
                             <Button x:Name="BtnPopoutVisualizer"
                                     Content="↗ Pop Out"

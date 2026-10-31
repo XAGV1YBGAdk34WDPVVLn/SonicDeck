@@ -73,9 +73,9 @@ public class SkiaVisualizerRenderer
         if (width <= 10 || height <= 10)
             return;
 
-        ThemePalette pal = VisualizerPalettes.GetPalette(Theme);
         _phaseTime += 0.016f + snap.BassEnergy * 0.035f;
         _gridScroll = (_gridScroll + 1.8f + snap.BassEnergy * 9.5f) % 40f;
+        ThemePalette pal = VisualizerPalettes.GetPalette(Theme, _phaseTime);
 
         if (snap.IsBeatFrame && _shockwaves.Count < 8)
         {
@@ -265,15 +265,42 @@ public class SkiaVisualizerRenderer
                 float bh = val * usableHeight * 0.88f;
                 float x = rect.Left + i * slotW;
                 float ratio = (float)i / (n - 1);
-                microPaint.Color = BlendColor(pal.LowColor, pal.HighColor, ratio).WithAlpha(95);
+                microPaint.Color = pal.SampleSpectrum(ratio).WithAlpha(110);
                 canvas.DrawRect(x, baseLine - bh, barW, bh, microPaint);
             }
         }
 
-        // 4. Main Catmull-Rom Cubic Spline RTA Curve & Gradient Fill
+        // 4. Main Catmull-Rom Cubic Spline RTA Curve & Multi-Stop Chromatic Gradient Fill
         using var fillPath = BuildSmoothSplinePath(snap.SmoothedSpectrum, rect.Left, rect.Width, baseLine, usableHeight * 0.88f, closeFill: true);
         using var strokePath = BuildSmoothSplinePath(snap.SmoothedSpectrum, rect.Left, rect.Width, baseLine, usableHeight * 0.88f, closeFill: false);
 
+        var stops = pal.SpectrumStops;
+        var fillHorizColors = new SKColor[stops.Length];
+        var glowHorizColors = new SKColor[stops.Length];
+        byte glowAlpha = (byte)Math.Clamp(GlowIntensity * 170f, 0f, 255f);
+        for (int i = 0; i < stops.Length; i++)
+        {
+            fillHorizColors[i] = stops[i].WithAlpha(95);
+            glowHorizColors[i] = stops[i].WithAlpha(glowAlpha);
+        }
+
+        // Layer 4a: Horizontal multi-stop frequency spectrum tint
+        using (var horizFillPaint = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill,
+            Shader = SKShader.CreateLinearGradient(
+                new SKPoint(rect.Left, baseLine),
+                new SKPoint(rect.Right, baseLine),
+                fillHorizColors,
+                null,
+                SKShaderTileMode.Clamp)
+        })
+        {
+            canvas.DrawPath(fillPath, horizFillPaint);
+        }
+
+        // Layer 4b: Vertical intensity gradient (brighter peaks fading into deep floor)
         using (var fillPaint = new SKPaint
         {
             IsAntialias = true,
@@ -283,11 +310,11 @@ public class SkiaVisualizerRenderer
                 new SKPoint(rect.Left, baseLine),
                 new[]
                 {
-                    pal.HighColor.WithAlpha(160),
-                    pal.MidColor.WithAlpha(105),
-                    pal.LowColor.WithAlpha(22)
+                    pal.HighColor.WithAlpha(140),
+                    pal.MidColor.WithAlpha(75),
+                    pal.BackgroundBottom.WithAlpha(18)
                 },
-                new[] { 0.0f, 0.45f, 1.0f },
+                new[] { 0.0f, 0.48f, 1.0f },
                 SKShaderTileMode.Clamp)
         })
         {
@@ -300,9 +327,14 @@ public class SkiaVisualizerRenderer
             {
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = 4.5f,
-                Color = pal.AccentGlow.WithAlpha((byte)(GlowIntensity * 150)),
-                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4.5f * GlowIntensity)
+                StrokeWidth = 5.0f,
+                Shader = SKShader.CreateLinearGradient(
+                    new SKPoint(rect.Left, 0),
+                    new SKPoint(rect.Right, 0),
+                    glowHorizColors,
+                    null,
+                    SKShaderTileMode.Clamp),
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4.8f * GlowIntensity)
             };
             canvas.DrawPath(strokePath, glowPaint);
         }
@@ -311,12 +343,12 @@ public class SkiaVisualizerRenderer
         {
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2.3f,
+            StrokeWidth = 2.4f,
             Shader = SKShader.CreateLinearGradient(
                 new SKPoint(rect.Left, 0),
                 new SKPoint(rect.Right, 0),
-                new[] { pal.LowColor, pal.MidColor, pal.HighColor },
-                new[] { 0f, 0.5f, 1f },
+                stops,
+                null,
                 SKShaderTileMode.Clamp)
         })
         {
@@ -329,9 +361,9 @@ public class SkiaVisualizerRenderer
             using var peakPath = BuildSmoothSplinePath(snap.PeakHoldSpectrum, rect.Left, rect.Width, baseLine, usableHeight * 0.88f, closeFill: false);
             using var peakPaint = new SKPaint
             {
-                Color = pal.PeakCapColor.WithAlpha(155),
+                Color = pal.PeakCapColor.WithAlpha(165),
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1.25f,
+                StrokeWidth = 1.3f,
                 IsAntialias = true
             };
             canvas.DrawPath(peakPath, peakPaint);
@@ -358,11 +390,20 @@ public class SkiaVisualizerRenderer
             refPath.LineTo(rect.Right, baseLine);
             refPath.Close();
 
+            var refColors = new SKColor[stops.Length];
+            for (int i = 0; i < stops.Length; i++)
+                refColors[i] = stops[i].WithAlpha(46);
+
             using var refPaint = new SKPaint
             {
                 IsAntialias = true,
                 Style = SKPaintStyle.Fill,
-                Color = pal.LowColor.WithAlpha(35)
+                Shader = SKShader.CreateLinearGradient(
+                    new SKPoint(rect.Left, baseLine),
+                    new SKPoint(rect.Right, baseLine),
+                    refColors,
+                    null,
+                    SKShaderTileMode.Clamp)
             };
             canvas.DrawPath(refPath, refPaint);
         }
@@ -448,11 +489,13 @@ public class SkiaVisualizerRenderer
                 if (v < 0.04f) continue;
 
                 float t = Math.Clamp(v, 0f, 1f);
-                SKColor heat = t < 0.45f
-                    ? BlendColor(pal.BackgroundBottom, pal.LowColor, t / 0.45f)
-                    : t < 0.80f
-                        ? BlendColor(pal.LowColor, pal.MidColor, (t - 0.45f) / 0.35f)
-                        : BlendColor(pal.MidColor, pal.HighColor, (t - 0.80f) / 0.20f);
+                float freqRatio = (float)c / Math.Max(1, cols - 1);
+                SKColor freqColor = pal.SampleSpectrum(freqRatio);
+                SKColor heat = t < 0.35f
+                    ? BlendColor(pal.BackgroundBottom, freqColor, t / 0.35f)
+                    : t < 0.78f
+                        ? BlendColor(freqColor, pal.HighColor, (t - 0.35f) / 0.43f * 0.55f)
+                        : BlendColor(freqColor, pal.PeakCapColor, (t - 0.78f) / 0.22f * 0.85f);
 
                 cellPaint.Color = heat.WithAlpha((byte)(Math.Clamp(t * rowFade * 235f, 15f, 240f)));
                 canvas.DrawRect(wfRect.Left + c * cellW, y, cellW * 2.15f, cellH + 0.8f, cellPaint);
@@ -504,7 +547,8 @@ public class SkiaVisualizerRenderer
             fillPath.LineTo(rect.Right, zeroDbY);
             fillPath.Close();
 
-            SKColor bandColor = band.GainDb >= 0 ? pal.LowColor : pal.HighColor;
+            float bandRatio = bands.Count > 1 ? (float)bIdx / (bands.Count - 1) : 0.5f;
+            SKColor bandColor = pal.SampleSpectrum(bandRatio);
             if (isHovered)
             {
                 bandColor = pal.EqCurveColor;
@@ -512,15 +556,15 @@ public class SkiaVisualizerRenderer
 
             using var fillPaint = new SKPaint
             {
-                Color = bandColor.WithAlpha((byte)(isHovered ? 62 : 22)),
+                Color = bandColor.WithAlpha((byte)(isHovered ? 68 : 30)),
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
             using var linePaint = new SKPaint
             {
-                Color = bandColor.WithAlpha((byte)(isHovered ? 195 : 70)),
+                Color = bandColor.WithAlpha((byte)(isHovered ? 210 : 95)),
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = isHovered ? 1.7f : 1.0f,
+                StrokeWidth = isHovered ? 1.8f : 1.15f,
                 IsAntialias = true
             };
 
@@ -793,13 +837,24 @@ public class SkiaVisualizerRenderer
 
             float x = rect.Left + b * slotW + gap * 0.5f;
             int litSegments = Math.Clamp((int)Math.Round(val * ledSegments), 0, ledSegments);
+            float freqRatio = bands > 1 ? (float)b / (bands - 1) : 0f;
+            SKColor bandBaseColor = pal.SampleSpectrum(freqRatio);
 
             for (int s = 0; s < litSegments; s++)
             {
                 float ratio = (float)s / (ledSegments - 1);
-                barPaint.Color = ratio < 0.6f
-                    ? BlendColor(pal.LowColor, pal.MidColor, ratio / 0.6f)
-                    : BlendColor(pal.MidColor, pal.HighColor, (ratio - 0.6f) / 0.4f);
+                if (Theme == VisualizerTheme.WinampClassic)
+                {
+                    barPaint.Color = ratio < 0.6f
+                        ? BlendColor(pal.LowColor, pal.MidColor, ratio / 0.6f)
+                        : BlendColor(pal.MidColor, pal.HighColor, (ratio - 0.6f) / 0.4f);
+                }
+                else
+                {
+                    barPaint.Color = ratio < 0.65f
+                        ? BlendColor(bandBaseColor, pal.MidColor, ratio * 0.35f)
+                        : BlendColor(bandBaseColor, pal.HighColor, (ratio - 0.65f) / 0.35f * 0.85f);
+                }
 
                 float y = baseLine - (s + 1) * segStep;
                 canvas.DrawRoundRect(x, y, barW, segH, 1.5f, 1.5f, barPaint);
@@ -815,7 +870,7 @@ public class SkiaVisualizerRenderer
             if (ShowMirrorReflection && litSegments > 0)
             {
                 float refH = (rect.Bottom - baseLine) * Math.Clamp(val, 0f, 1f) * 0.75f;
-                barPaint.Color = pal.LowColor.WithAlpha(42);
+                barPaint.Color = bandBaseColor.WithAlpha(45);
                 canvas.DrawRect(x, baseLine + 2f, barW, refH, barPaint);
             }
         }
@@ -999,9 +1054,7 @@ public class SkiaVisualizerRenderer
             float y2 = cy + sin * (baseRadius + barLen);
 
             float ratio = (float)bin / srcLen;
-            bladePaint.Color = ratio < 0.5f
-                ? BlendColor(pal.LowColor, pal.MidColor, ratio * 2f)
-                : BlendColor(pal.MidColor, pal.HighColor, (ratio - 0.5f) * 2f);
+            bladePaint.Color = pal.SampleSpectrum(ratio);
 
             canvas.DrawLine(x1, y1, x2, y2, bladePaint);
         }
@@ -1047,12 +1100,22 @@ public class SkiaVisualizerRenderer
             canvas.DrawCircle(sunX, sunY, sunRadius, sunPaint);
         }
 
+        var stops = pal.SpectrumStops;
+        var gridColors = new SKColor[stops.Length];
+        for (int i = 0; i < stops.Length; i++)
+            gridColors[i] = stops[i].WithAlpha(140);
+
         using var gridPaint = new SKPaint
         {
-            Color = pal.LowColor.WithAlpha(135),
             StrokeWidth = 1.25f,
             IsAntialias = true,
-            Style = SKPaintStyle.Stroke
+            Style = SKPaintStyle.Stroke,
+            Shader = SKShader.CreateLinearGradient(
+                new SKPoint(0, horizonY),
+                new SKPoint(w, horizonY),
+                gridColors,
+                null,
+                SKShaderTileMode.Clamp)
         };
 
         int radialLines = 18;
@@ -1076,6 +1139,7 @@ public class SkiaVisualizerRenderer
 
         int n = snap.SmoothedSpectrum.Length;
         using var skylinePath = new SKPath();
+        using var skylineStroke = new SKPath();
         skylinePath.MoveTo(0, horizonY);
         for (int i = 0; i < n; i++)
         {
@@ -1083,6 +1147,8 @@ public class SkiaVisualizerRenderer
             float val = Math.Clamp(snap.SmoothedSpectrum[i], 0f, 1.15f);
             float y = horizonY - val * (horizonY * 0.72f);
             skylinePath.LineTo(x, y);
+            if (i == 0) skylineStroke.MoveTo(x, y);
+            else skylineStroke.LineTo(x, y);
         }
         skylinePath.LineTo(w, horizonY);
         skylinePath.Close();
@@ -1097,11 +1163,16 @@ public class SkiaVisualizerRenderer
         {
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2.4f,
-            Color = pal.PeakCapColor
+            StrokeWidth = 2.6f,
+            Shader = SKShader.CreateLinearGradient(
+                new SKPoint(0, horizonY),
+                new SKPoint(w, horizonY),
+                stops,
+                null,
+                SKShaderTileMode.Clamp)
         };
         canvas.DrawPath(skylinePath, mountFill);
-        canvas.DrawPath(skylinePath, mountEdge);
+        canvas.DrawPath(skylineStroke, mountEdge);
     }
 
     private static void DrawHudOverlay(

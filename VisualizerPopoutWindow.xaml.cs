@@ -56,6 +56,9 @@ public partial class VisualizerPopoutWindow : Window
         CmbPopoutRtaStyle.DisplayMemberPath = nameof(RtaStyleItem.DisplayName);
         CmbPopoutRtaStyle.SelectedItem = VisualizerPalettes.RtaStyleItems.FirstOrDefault(s => s.Style == _renderer.RtaStyle);
 
+        CmbPopoutTheme.ItemsSource = VisualizerPalettes.ThemeItems;
+        CmbPopoutTheme.SelectedItem = VisualizerPalettes.ThemeItems.FirstOrDefault(t => t.Theme == _renderer.Theme);
+
         ChkPopoutEqOverlay.IsChecked = _renderer.ShowEqCurveOverlay;
         _isInitialized = true;
 
@@ -185,6 +188,13 @@ public partial class VisualizerPopoutWindow : Window
             case Key.D5:
             case Key.NumPad5:
                 SelectMode(VisualizerMode.CyberHorizonGrid);
+                break;
+
+            case Key.T:
+                int count = VisualizerPalettes.ThemeItems.Count;
+                CmbPopoutTheme.SelectedIndex = (CmbPopoutTheme.SelectedIndex + 1) % count;
+                ShowHudTemporarily();
+                e.Handled = true;
                 break;
         }
     }
@@ -393,6 +403,15 @@ public partial class VisualizerPopoutWindow : Window
         if (CmbPopoutRtaStyle.SelectedItem is RtaStyleItem item)
         {
             _renderer.RtaStyle = item.Style;
+        }
+    }
+
+    private void CmbPopoutTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isInitialized) return;
+        if (CmbPopoutTheme.SelectedItem is VisualizerThemeItem item)
+        {
+            _renderer.Theme = item.Theme;
         }
     }
 

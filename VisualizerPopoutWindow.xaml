@@ -48,10 +48,27 @@
 
                 <TextBlock Text="RTA Style:" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
                 <ComboBox x:Name="CmbPopoutRtaStyle"
-                          Width="205"
+                          Width="195"
                           SelectionChanged="CmbPopoutRtaStyle_SelectionChanged"
                           VerticalAlignment="Center"
-                          Margin="0,0,12,0"/>
+                          Margin="0,0,10,0"/>
+
+                <TextBlock Text="Theme (T):" Foreground="#A855F7" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                <ComboBox x:Name="CmbPopoutTheme"
+                          Width="185"
+                          SelectionChanged="CmbPopoutTheme_SelectionChanged"
+                          VerticalAlignment="Center"
+                          Margin="0,0,12,0">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="24" Height="10" CornerRadius="3" Background="{Binding SwatchBrush}" BorderBrush="#334155" BorderThickness="1" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <Ellipse Width="6" Height="6" Fill="{Binding EqAccentBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
 
                 <CheckBox x:Name="ChkPopoutEqOverlay"
                           Content="EQ Overlay"

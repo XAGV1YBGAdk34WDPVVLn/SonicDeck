@@ -127,8 +127,8 @@ public partial class MainWindow : Window
         CmbPresets.DisplayMemberPath = nameof(EqPreset.Name);
         CmbPresets.SelectedIndex = 1; // Default to "Bass Boost + Punch"
 
-        CmbTheme.ItemsSource = Enum.GetValues<VisualizerTheme>();
-        CmbTheme.SelectedItem = VisualizerTheme.CyberpunkNeon;
+        CmbTheme.ItemsSource = VisualizerPalettes.ThemeItems;
+        CmbTheme.SelectedIndex = 0;
 
         _isUpdatingUi = false;
 
@@ -564,10 +564,22 @@ public partial class MainWindow : Window
     private void CmbTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_isInitialized) return;
-        if (CmbTheme.SelectedItem is VisualizerTheme theme)
+        if (CmbTheme.SelectedItem is VisualizerThemeItem item)
         {
-            _renderer.Theme = theme;
+            _renderer.Theme = item.Theme;
         }
+    }
+
+    private void BtnPrevTheme_Click(object sender, RoutedEventArgs e)
+    {
+        int count = VisualizerPalettes.ThemeItems.Count;
+        CmbTheme.SelectedIndex = (CmbTheme.SelectedIndex - 1 + count) % count;
+    }
+
+    private void BtnNextTheme_Click(object sender, RoutedEventArgs e)
+    {
+        int count = VisualizerPalettes.ThemeItems.Count;
+        CmbTheme.SelectedIndex = (CmbTheme.SelectedIndex + 1) % count;
     }
 
     private void VisControls_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -699,6 +711,7 @@ public partial class MainWindow : Window
             ChkShowEqCurve.IsChecked = _renderer.ShowEqCurveOverlay;
             CmbVisualMode.SelectedItem = VisualizerPalettes.ModeItems.FirstOrDefault(m => m.Mode == _renderer.Mode);
             CmbRtaStyle.SelectedItem = VisualizerPalettes.RtaStyleItems.FirstOrDefault(s => s.Style == _renderer.RtaStyle);
+            CmbTheme.SelectedItem = VisualizerPalettes.ThemeItems.FirstOrDefault(t => t.Theme == _renderer.Theme);
         };
 
         SkiaCanvas.Visibility = Visibility.Collapsed;
