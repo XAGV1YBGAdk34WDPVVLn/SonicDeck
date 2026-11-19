@@ -8,8 +8,8 @@ public enum VisualizerMode
     StudioRtaEq,
     WinampClassicLed,
     HarmonicOscilloscope,
-    RadialBassReactor,
-    CyberHorizonGrid
+    CymaticSingularity,
+    EventHorizon
 }
 
 public enum RtaDisplayStyle
@@ -90,8 +90,8 @@ public static class VisualizerPalettes
         new(VisualizerMode.StudioRtaEq, "1. Pro Studio RTA + Live EQ (FabFilter Style)"),
         new(VisualizerMode.WinampClassicLed, "2. Winamp Classic Segmented LED Bars"),
         new(VisualizerMode.HarmonicOscilloscope, "3. Harmonic Stereo Oscilloscope + XY Scope"),
-        new(VisualizerMode.RadialBassReactor, "4. Radial Bass Reactor + Particle Ring"),
-        new(VisualizerMode.CyberHorizonGrid, "5. Cyber Horizon 3D Synthwave Terrain")
+        new(VisualizerMode.CymaticSingularity, "4. Cymatic Singularity (Harmonic Fluid + Stereo)"),
+        new(VisualizerMode.EventHorizon, "5. Event Horizon (Black Hole + Warp Nebula)")
     };
 
     public static IReadOnlyList<RtaStyleItem> RtaStyleItems { get; } = new List<RtaStyleItem>

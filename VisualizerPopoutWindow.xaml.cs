@@ -183,11 +183,11 @@ public partial class VisualizerPopoutWindow : Window
                 break;
             case Key.D4:
             case Key.NumPad4:
-                SelectMode(VisualizerMode.RadialBassReactor);
+                SelectMode(VisualizerMode.CymaticSingularity);
                 break;
             case Key.D5:
             case Key.NumPad5:
-                SelectMode(VisualizerMode.CyberHorizonGrid);
+                SelectMode(VisualizerMode.EventHorizon);
                 break;
 
             case Key.T:

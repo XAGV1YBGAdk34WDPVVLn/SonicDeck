@@ -5,36 +5,11 @@ using SonicDeck.Models;
 
 namespace SonicDeck.Visuals;
 
-public class SkiaVisualizerRenderer
+public class SkiaVisualizerRenderer : IDisposable
 {
-    private struct Particle
-    {
-        public float Angle;
-        public float Radius;
-        public float Speed;
-        public float Size;
-        public float Alpha;
-    }
-
-    private struct ShockwaveRing
-    {
-        public float Radius;
-        public float Alpha;
-    }
-
-    private readonly Particle[] _particles = new Particle[90];
-    private readonly List<ShockwaveRing> _shockwaves = new();
-    private readonly Random _rng = new(1337);
+    private readonly CymaticSingularityEngine _cymaticEngine = new();
+    private readonly EventHorizonEngine _eventHorizonEngine = new();
     private float _phaseTime;
-    private float _gridScroll;
-
-    public SkiaVisualizerRenderer()
-    {
-        for (int i = 0; i < _particles.Length; i++)
-        {
-            _particles[i] = CreateParticle(randomRadius: true);
-        }
-    }
 
     public VisualizerMode Mode { get; set; } = VisualizerMode.StudioRtaEq;
     public RtaDisplayStyle RtaStyle { get; set; } = RtaDisplayStyle.MidSideWaterfall;
@@ -50,18 +25,6 @@ public class SkiaVisualizerRenderer
     public int HoveredBandIndex { get; set; } = -1;
     public SKPoint? CursorSkiaPoint { get; set; }
 
-    private Particle CreateParticle(bool randomRadius)
-    {
-        return new Particle
-        {
-            Angle = (float)(_rng.NextDouble() * Math.PI * 2.0),
-            Radius = randomRadius ? (float)(_rng.NextDouble() * 320.0 + 30.0) : 45f,
-            Speed = (float)(_rng.NextDouble() * 1.8 + 0.4),
-            Size = (float)(_rng.NextDouble() * 2.8 + 1.2),
-            Alpha = (float)(_rng.NextDouble() * 0.75 + 0.25)
-        };
-    }
-
     public void Render(
         SKCanvas canvas,
         int width,
@@ -74,15 +37,12 @@ public class SkiaVisualizerRenderer
             return;
 
         _phaseTime += 0.016f + snap.BassEnergy * 0.035f;
-        _gridScroll = (_gridScroll + 1.8f + snap.BassEnergy * 9.5f) % 40f;
         ThemePalette pal = VisualizerPalettes.GetPalette(Theme, _phaseTime);
 
-        if (snap.IsBeatFrame && _shockwaves.Count < 8)
+        if (Mode is not (VisualizerMode.CymaticSingularity or VisualizerMode.EventHorizon))
         {
-            _shockwaves.Add(new ShockwaveRing { Radius = 58f, Alpha = 0.85f });
+            DrawBackground(canvas, width, height, pal, snap);
         }
-
-        DrawBackground(canvas, width, height, pal, snap);
 
         float padLeft = 48f;
         float padRight = 24f;
@@ -122,20 +82,38 @@ public class SkiaVisualizerRenderer
                     DrawInteractiveEqCurve(canvas, plotRect, eqChain, bands, pal);
                 break;
 
-            case VisualizerMode.RadialBassReactor:
-                DrawRadialReactor(canvas, width, height, snap, pal);
+            case VisualizerMode.CymaticSingularity:
+                _cymaticEngine.Render(
+                    canvas,
+                    width,
+                    height,
+                    snap,
+                    pal,
+                    GlowIntensity,
+                    BeatFlashIntensity,
+                    BandCount,
+                    ShowMirrorReflection);
                 if (ShowEqCurveOverlay)
                     DrawInteractiveEqCurve(canvas, plotRect, eqChain, bands, pal);
                 break;
 
-            case VisualizerMode.CyberHorizonGrid:
-                DrawCyberHorizon(canvas, width, height, snap, pal);
+            case VisualizerMode.EventHorizon:
+                _eventHorizonEngine.Render(
+                    canvas,
+                    width,
+                    height,
+                    snap,
+                    pal,
+                    GlowIntensity,
+                    BeatFlashIntensity,
+                    BandCount,
+                    ShowMirrorReflection);
                 if (ShowEqCurveOverlay)
                     DrawInteractiveEqCurve(canvas, plotRect, eqChain, bands, pal);
                 break;
         }
 
-        DrawHudOverlay(canvas, width, height, snap, eqChain, pal);
+        DrawHudOverlay(canvas, width, height, snap, eqChain, pal, Mode);
     }
 
     private void DrawBackground(SKCanvas canvas, int w, int h, ThemePalette pal, AudioAnalysisSnapshot snap)
@@ -987,201 +965,14 @@ public class SkiaVisualizerRenderer
         canvas.DrawPath(xyPath, xyPaint);
     }
 
-    private void DrawRadialReactor(SKCanvas canvas, int w, int h, AudioAnalysisSnapshot snap, ThemePalette pal)
-    {
-        float cx = w * 0.5f;
-        float cy = h * 0.5f;
-        float minDim = Math.Min(w, h);
-        float baseRadius = minDim * 0.19f * (1.0f + snap.BassEnergy * 0.28f + snap.BeatPulse * 0.12f);
-
-        using var partPaint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
-        float speedMult = 1.0f + snap.BassEnergy * 4.2f;
-        for (int i = 0; i < _particles.Length; i++)
-        {
-            ref var p = ref _particles[i];
-            p.Radius += p.Speed * speedMult;
-            p.Angle += 0.004f;
-            if (p.Radius > minDim * 0.65f)
-            {
-                p = CreateParticle(randomRadius: false);
-            }
-
-            float px = cx + (float)Math.Cos(p.Angle) * p.Radius;
-            float py = cy + (float)Math.Sin(p.Angle) * p.Radius;
-            partPaint.Color = pal.AccentGlow.WithAlpha((byte)(p.Alpha * 190));
-            canvas.DrawCircle(px, py, p.Size * (1f + snap.HighEnergy), partPaint);
-        }
-
-        using var shockPaint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2.2f };
-        for (int i = _shockwaves.Count - 1; i >= 0; i--)
-        {
-            var sw = _shockwaves[i];
-            sw.Radius += 5.5f + snap.BassEnergy * 6f;
-            sw.Alpha *= 0.94f;
-            if (sw.Alpha < 0.03f)
-            {
-                _shockwaves.RemoveAt(i);
-                continue;
-            }
-            _shockwaves[i] = sw;
-            shockPaint.Color = pal.HighColor.WithAlpha((byte)(sw.Alpha * 220));
-            canvas.DrawCircle(cx, cy, sw.Radius, shockPaint);
-        }
-
-        int blades = Math.Clamp(BandCount, 32, 128);
-        int srcLen = snap.SmoothedSpectrum.Length;
-        using var bladePaint = new SKPaint
-        {
-            IsAntialias = true,
-            Style = SKPaintStyle.Stroke,
-            StrokeCap = SKStrokeCap.Round,
-            StrokeWidth = Math.Max(2.2f, (float)(Math.PI * 2.0 * baseRadius / blades * 0.58f))
-        };
-
-        for (int i = 0; i < blades; i++)
-        {
-            int bin = (i < blades / 2 ? i : blades - 1 - i) * (srcLen - 1) / (blades / 2);
-            float val = Math.Clamp(snap.SmoothedSpectrum[bin], 0f, 1.15f);
-            float barLen = 6f + val * minDim * 0.25f;
-
-            float angle = (float)(i * Math.PI * 2.0 / blades) - (float)(Math.PI * 0.5) + _phaseTime * 0.15f;
-            float cos = (float)Math.Cos(angle);
-            float sin = (float)Math.Sin(angle);
-
-            float x1 = cx + cos * baseRadius;
-            float y1 = cy + sin * baseRadius;
-            float x2 = cx + cos * (baseRadius + barLen);
-            float y2 = cy + sin * (baseRadius + barLen);
-
-            float ratio = (float)bin / srcLen;
-            bladePaint.Color = pal.SampleSpectrum(ratio);
-
-            canvas.DrawLine(x1, y1, x2, y2, bladePaint);
-        }
-
-        using var corePaint = new SKPaint
-        {
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill,
-            Shader = SKShader.CreateRadialGradient(
-                new SKPoint(cx, cy),
-                baseRadius,
-                new[]
-                {
-                    pal.HighColor.WithAlpha(200),
-                    pal.MidColor.WithAlpha(110),
-                    pal.BackgroundBottom.WithAlpha(230)
-                },
-                new[] { 0f, 0.55f, 1f },
-                SKShaderTileMode.Clamp)
-        };
-        canvas.DrawCircle(cx, cy, baseRadius * 0.92f, corePaint);
-    }
-
-    private void DrawCyberHorizon(SKCanvas canvas, int w, int h, AudioAnalysisSnapshot snap, ThemePalette pal)
-    {
-        float horizonY = h * 0.54f;
-        float sunRadius = Math.Min(w, h) * (0.16f + snap.BassEnergy * 0.05f);
-        float sunX = w * 0.5f;
-        float sunY = horizonY - sunRadius * 0.35f;
-
-        using (var sunPaint = new SKPaint
-        {
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill,
-            Shader = SKShader.CreateLinearGradient(
-                new SKPoint(sunX, sunY - sunRadius),
-                new SKPoint(sunX, sunY + sunRadius),
-                new[] { pal.HighColor, pal.MidColor, pal.LowColor },
-                null,
-                SKShaderTileMode.Clamp)
-        })
-        {
-            canvas.DrawCircle(sunX, sunY, sunRadius, sunPaint);
-        }
-
-        var stops = pal.SpectrumStops;
-        var gridColors = new SKColor[stops.Length];
-        for (int i = 0; i < stops.Length; i++)
-            gridColors[i] = stops[i].WithAlpha(140);
-
-        using var gridPaint = new SKPaint
-        {
-            StrokeWidth = 1.25f,
-            IsAntialias = true,
-            Style = SKPaintStyle.Stroke,
-            Shader = SKShader.CreateLinearGradient(
-                new SKPoint(0, horizonY),
-                new SKPoint(w, horizonY),
-                gridColors,
-                null,
-                SKShaderTileMode.Clamp)
-        };
-
-        int radialLines = 18;
-        for (int i = -radialLines; i <= radialLines; i++)
-        {
-            float topX = sunX + i * (w * 0.025f);
-            float botX = sunX + i * (w * 0.16f);
-            canvas.DrawLine(topX, horizonY, botX, h, gridPaint);
-        }
-
-        float floorH = h - horizonY;
-        for (int row = 1; row <= 12; row++)
-        {
-            float t = ((row + (_gridScroll / 40f)) / 12f);
-            float perspectiveY = horizonY + (t * t) * floorH;
-            if (perspectiveY <= h)
-            {
-                canvas.DrawLine(0, perspectiveY, w, perspectiveY, gridPaint);
-            }
-        }
-
-        int n = snap.SmoothedSpectrum.Length;
-        using var skylinePath = new SKPath();
-        using var skylineStroke = new SKPath();
-        skylinePath.MoveTo(0, horizonY);
-        for (int i = 0; i < n; i++)
-        {
-            float x = w * i / (n - 1f);
-            float val = Math.Clamp(snap.SmoothedSpectrum[i], 0f, 1.15f);
-            float y = horizonY - val * (horizonY * 0.72f);
-            skylinePath.LineTo(x, y);
-            if (i == 0) skylineStroke.MoveTo(x, y);
-            else skylineStroke.LineTo(x, y);
-        }
-        skylinePath.LineTo(w, horizonY);
-        skylinePath.Close();
-
-        using var mountFill = new SKPaint
-        {
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill,
-            Color = pal.BackgroundBottom.WithAlpha(225)
-        };
-        using var mountEdge = new SKPaint
-        {
-            IsAntialias = true,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2.6f,
-            Shader = SKShader.CreateLinearGradient(
-                new SKPoint(0, horizonY),
-                new SKPoint(w, horizonY),
-                stops,
-                null,
-                SKShaderTileMode.Clamp)
-        };
-        canvas.DrawPath(skylinePath, mountFill);
-        canvas.DrawPath(skylineStroke, mountEdge);
-    }
-
     private static void DrawHudOverlay(
         SKCanvas canvas,
         int w,
         int h,
         AudioAnalysisSnapshot snap,
         BiquadEqChain eqChain,
-        ThemePalette pal)
+        ThemePalette pal,
+        VisualizerMode mode)
     {
         using var labelPaint = new SKPaint
         {
@@ -1195,7 +986,18 @@ public class SkiaVisualizerRenderer
             ? $"   NOTE {snap.DominantMusicalNote} ({snap.DominantFrequencyHz:0}Hz)"
             : "";
 
-        string metrics = $"BASS {snap.BassEnergy * 100:00}%   MID {snap.MidEnergy * 100:00}%   HIGH {snap.HighEnergy * 100:00}%{noteInfo}";
+        string extraInfo = mode switch
+        {
+            VisualizerMode.CymaticSingularity =>
+                $"   STEREO {snap.StereoWidth * 100:00}%   MODE ({snap.HarmonicModeM:0.0},{snap.HarmonicModeN:0.0})" +
+                (!string.IsNullOrEmpty(snap.DetectedChordLabel) ? $"   CHORD {snap.DetectedChordLabel}" : ""),
+            VisualizerMode.EventHorizon =>
+                $"   STEREO {snap.StereoWidth * 100:00}%   WARP {(1.0f + snap.BassEnergy * 2.5f + snap.KickPulse * 2.0f):0.0}c" +
+                (!string.IsNullOrEmpty(snap.DetectedChordLabel) ? $"   CHORD {snap.DetectedChordLabel}" : ""),
+            _ => ""
+        };
+
+        string metrics = $"BASS {snap.BassEnergy * 100:00}%   MID {snap.MidEnergy * 100:00}%   HIGH {snap.HighEnergy * 100:00}%{noteInfo}{extraInfo}";
         canvas.DrawText(metrics, 50f, 20f, labelPaint);
 
         if (eqChain.SoloBandIndex >= 0)
@@ -1255,5 +1057,11 @@ public class SkiaVisualizerRenderer
             (byte)(a.Green + (b.Green - a.Green) * t),
             (byte)(a.Blue + (b.Blue - a.Blue) * t),
             (byte)(a.Alpha + (b.Alpha - a.Alpha) * t));
+    }
+
+    public void Dispose()
+    {
+        _cymaticEngine.Dispose();
+        _eventHorizonEngine.Dispose();
     }
 }

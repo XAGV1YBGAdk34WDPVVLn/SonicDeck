@@ -78,6 +78,7 @@ public partial class MainWindow : Window
             _dspRouter.Dispose();
             _analysisEngine.Dispose();
             _mixerService.Dispose();
+            _renderer.Dispose();
         };
     }
 
